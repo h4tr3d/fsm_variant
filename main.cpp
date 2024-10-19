@@ -1,105 +1,6 @@
-#include <csignal>
+#include <cstdio>
 
-#include <chrono>
-#include <iostream>
-#include <optional>
-#include <thread>
-#include <variant>
-
-//
-// References:
-//
-// - <https://www.cppstories.com/2023/finite-state-machines-variant-cpp/>
-//   - <https://github.com/fenbf/articles/tree/master/cpp20/stateMachine>
-//
-// - <https://honeytreelabs.com/posts/real-time-state-machine-in-cpp/>
-//   - <https://gist.github.com/rpoisel/bada82555a1b08c98f41f6e72616e50a>
-//
-// - <https://devblogs.microsoft.com/oldnewthing/20190620-00/?p=102604>
-//
-
-namespace helper {
-
-template <class... Ts> struct overload : Ts...
-{
-    using Ts::operator()...;
-};
-// template<class... Ts> overload(Ts...)->overload<Ts...>; // no need in C++20, MSVC?
-template<class... Ts> overload(Ts...) -> overload<Ts...>;
-}
-
-
-
-template <class Table, class... States>
-    requires (requires (Table t) { t(); })
-class Fsm
-{
-public:
-    ~Fsm() = default;
-
-    using StateVariant = std::variant<States...>;
-    using OptionalStateVariant = std::optional<StateVariant>;
-
-    constexpr Fsm(Table &&table, StateVariant &&initialState)
-        : _table {std::move(table)},
-          _state {std::move(initialState)}
-    {
-    }
-
-    constexpr bool poll()
-    {
-        return std::visit([this](auto &&state) -> bool {
-            if constexpr (requires { _state = _table()(state); }) {
-                _state = _table()(state);
-                return true;
-            } else if constexpr (requires { std::visit([](auto&& x){}, _table()(state)); }) {
-                std::visit([this](auto&& s) {
-                    _state = std::move(s);
-                }, _table()(state));
-                return true;
-            } else if constexpr (requires { _table()(state); }) {
-                _table()(state);
-                return true;
-            } else {
-                return false;
-            }
-        }, _state);
-    }
-
-    template <typename Event>
-    constexpr bool processEvent(Event &&event)
-    {
-        return std::visit([this,&event](auto&& state) -> bool {
-            if constexpr (requires { _state = _table()(state, event); }) {
-                _state = _table()(state, event);
-                return true;
-            } else if constexpr (requires { std::visit([](auto&& x){},_table()(state, event)); }) {
-
-                // iterate over resulting variants
-                std::visit([this](auto&& s) {
-                    _state = std::move(s);
-                }, _table()(state, event));
-
-                return true;
-            } else if constexpr (requires { _table()(state, event); }) {
-                _table()(state, event);
-                return true;
-            } else {
-                return false;
-            }
-        }, _state);
-    }
-
-    constexpr auto visit(auto&& fn) const
-    {
-        return std::visit(fn, _state);
-    }
-
-private:
-    Table _table;
-    StateVariant _state;
-};
-
+#include "fsm_variant.hpp"
 
 auto main() noexcept -> int
 {
@@ -125,7 +26,7 @@ auto main() noexcept -> int
         // Transition table
         constexpr auto operator()()
         {
-            return helper::overload {
+            return fsm_variant::overload {
                 [this](Init, EvProcess) -> Run  { std::puts("init"); ctx = {}; return {}; },
                 [this](Run,  EvProcess) -> std::variant<Run, Done, Fail> {
                 std::puts("run");
@@ -147,7 +48,7 @@ auto main() noexcept -> int
         Context ctx{};
     };
 
-    using MyFsm = Fsm<LocalSm, LocalSm::Init, LocalSm::Run, LocalSm::Done, LocalSm::Fail, LocalSm::Wait>;
+    using MyFsm = fsm_variant::Fsm<LocalSm, LocalSm::Init, LocalSm::Run, LocalSm::Done, LocalSm::Fail, LocalSm::Wait>;
 
     MyFsm sm{LocalSm{}, LocalSm::Init{}};
 
@@ -155,9 +56,16 @@ auto main() noexcept -> int
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
 
-    sm.poll();
-    sm.poll();
-    sm.poll();
+    // Poll only in the Run state
+    sm.visit(fsm_variant::overload{
+        [&](LocalSm::Run) { sm.poll(); },
+        [](auto) {} // fallback
+    });
+    sm.visit([&](auto s) {
+        if constexpr (std::is_same_v<LocalSm::Run, decltype(s)>) {
+            sm.poll();
+        }
+    });
 
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
