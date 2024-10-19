@@ -46,10 +46,30 @@ public:
     {
     }
 
+    constexpr bool poll()
+    {
+        return std::visit([this](auto &&state) -> bool {
+            if constexpr (requires { _state = _table()(state); }) {
+                _state = _table()(state);
+                return true;
+            } else if constexpr (requires { std::visit([](auto&& x){}, _table()(state)); }) {
+                std::visit([this](auto&& s) {
+                    _state = std::move(s);
+                }, _table()(state));
+                return true;
+            } else if constexpr (requires { _table()(state); }) {
+                _table()(state);
+                return true;
+            } else {
+                return false;
+            }
+        }, _state);
+    }
+
     template <typename Event>
     constexpr bool processEvent(Event &&event)
     {
-        return std::visit([this,&event](auto &state) -> bool {
+        return std::visit([this,&event](auto&& state) -> bool {
             if constexpr (requires { _state = _table()(state, event); }) {
                 _state = _table()(state, event);
                 return true;
@@ -57,7 +77,7 @@ public:
 
                 // iterate over resulting variants
                 std::visit([this](auto&& s) {
-                    _state = s;
+                    _state = std::move(s);
                 }, _table()(state, event));
 
                 return true;
@@ -93,6 +113,7 @@ auto main() noexcept -> int
         struct Done {};
         struct Wait {};
 
+        // Events for Event Driven mode
         struct EvProcess {};
         struct EvReset   {};
 
@@ -101,6 +122,7 @@ auto main() noexcept -> int
             int counter = 0;
         };
 
+        // Transition table
         constexpr auto operator()()
         {
             return helper::overload {
@@ -115,7 +137,10 @@ auto main() noexcept -> int
             },
                 [](Done, EvProcess) -> Done { std::puts("done"); return {}; },
                 [](Fail, EvProcess) -> Fail { std::puts("fail"); return {}; },
-                [](auto, EvReset)   -> Init { return {}; }
+                // Any State event processing
+                [](auto, EvReset)   -> Init { return {}; },
+                // Run State polling CB. Return value deternmine new state. Maybe void to keep state
+                [](Run)                     { std::puts("Run State Poll"); },
             };
         }
 
@@ -129,6 +154,11 @@ auto main() noexcept -> int
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
+
+    sm.poll();
+    sm.poll();
+    sm.poll();
+
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
     sm.processEvent(LocalSm::EvProcess{});
