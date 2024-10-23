@@ -34,6 +34,8 @@ template <class... Ts> struct overload : Ts...
 // template<class... Ts> overload(Ts...)->overload<Ts...>; // no need in C++20, MSVC?
 template<class... Ts> overload(Ts...) -> overload<Ts...>;
 
+struct OnEnter {};
+struct OnExit  {};
 
 /**
  * Simple Finite State Machine implementation using C++20 features and std::variant
@@ -98,17 +100,29 @@ public:
         : _table {std::move(table)},
           _state {std::move(initialState)}
     {
+        // Handle initalState onEnter here
+        std::visit([this](auto&& s) {
+            using CurrentStateType = std::remove_reference_t<decltype(s)>;
+            if constexpr (requires { _table()(s, s, OnEnter{}); }) {
+                _table()(s, s, OnEnter{});
+            } else if constexpr (requires { _table()(s, OnEnter{}); }) {
+                _table()(s, OnEnter{});
+            }
+        }, _state);
     }
 
     constexpr bool poll()
     {
         return std::visit([this](auto &&state) -> bool {
             if constexpr (requires { _state = _table()(state); }) {
-                _state = _table()(state);
+                auto newState = _table()(state);
+                handleOnExitEnter(newState);
+                _state = std::move(newState);
                 return true;
             } else if constexpr (requires { std::visit([](auto&& x){}, _table()(state)); }) {
-                std::visit([this](auto&& s) {
-                    _state = std::move(s);
+                std::visit([this](auto&& newState) {
+                    handleOnExitEnter(newState);
+                    _state = std::move(newState);
                 }, _table()(state));
                 return true;
             } else if constexpr (requires { _table()(state); }) {
@@ -125,13 +139,16 @@ public:
     {
         return std::visit([this,&event](auto&& state) -> bool {
             if constexpr (requires { _state = _table()(state, event); }) {
-                _state = _table()(state, event);
+                auto newState = _table()(state, event);
+                handleOnExitEnter(newState);
+                _state = std::move(newState);
                 return true;
             } else if constexpr (requires { std::visit([](auto&& x){},_table()(state, event)); }) {
 
                 // iterate over resulting variants
-                std::visit([this](auto&& s) {
-                    _state = std::move(s);
+                std::visit([this](auto&& newState) {
+                    handleOnExitEnter(newState);
+                    _state = std::move(newState);
                 }, _table()(state, event));
 
                 return true;
@@ -147,6 +164,34 @@ public:
     constexpr auto visit(auto&& fn) const
     {
         return std::visit(fn, _state);
+    }
+
+private:
+    template<typename State>
+    void handleOnExitEnter(State& newState)
+    {
+        // onExit/onEnter
+        using NewStateType = State;
+        if (std::holds_alternative<NewStateType>(_state) == false) {
+            std::visit([this,&newState](auto&& currentState) {
+                using CurrentStateType = std::remove_reference_t<decltype(currentState)>;
+
+                // process current state onExit
+                if constexpr (requires { _table()(currentState, newState, OnExit{}); }) {
+                    _table()(currentState, newState, OnExit{});
+                } else if constexpr (requires { _table()(currentState, OnExit{}); }) {
+                    _table()(currentState, OnExit{});
+                }
+
+                // process new state onEnter
+                if constexpr (requires { _table()(newState, currentState, OnEnter{}); }) {
+                    _table()(newState, currentState, OnEnter{});
+                } else if constexpr (requires { _table()(newState, OnEnter{}); }) {
+                    _table()(newState, OnEnter{});
+                }
+
+            }, _state);
+        }
     }
 
 private:

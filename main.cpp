@@ -9,7 +9,7 @@ auto main() noexcept -> int
     struct LocalSm
     {
         struct Init {};
-        struct Run {};
+        struct Run  {};
         struct Fail {};
         struct Done {};
         struct Wait {};
@@ -40,8 +40,17 @@ auto main() noexcept -> int
                 [](Fail, EvProcess) -> Fail { std::puts("fail"); return {}; },
                 // Any State event processing
                 [](auto, EvReset)   -> Init { return {}; },
+
                 // Run State polling CB. Return value deternmine new state. Maybe void to keep state
                 [](Run)                     { std::puts("Run State Poll"); },
+
+                // OnEnter/OnExit cases
+                [](Init,       fsm_variant::OnEnter) { std::puts("++ Init onEnter"); },
+                [](Init, auto, fsm_variant::OnExit)  { std::puts("-- Init onExit"); },
+                [](Run,  auto, fsm_variant::OnEnter) { std::puts("++ Run onEnter"); },
+                [](Run,  auto, fsm_variant::OnExit)  { std::puts("-- Run onExit"); },
+                [](auto, auto, fsm_variant::OnEnter) { std::puts("++ Generic onEnter"); },
+                [](auto, auto, fsm_variant::OnExit)  { std::puts("-- Generic onExit"); }
             };
         }
 
