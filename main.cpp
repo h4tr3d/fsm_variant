@@ -1,6 +1,4 @@
 #include <cstdio>
-#include <typeinfo>
-#include <format>
 
 #include "vfsm/vfsm.hpp"
 
