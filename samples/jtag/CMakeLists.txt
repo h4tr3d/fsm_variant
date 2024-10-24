@@ -1,16 +1,15 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(FsmTest_variant LANGUAGES CXX)
+project(jtag LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(FsmTest_variant main.cpp
-    vfsm/vfsm.hpp)
+add_executable(jtag main.cpp)
+target_include_directories(jtag PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../..)
 
 include(GNUInstallDirs)
-install(TARGETS FsmTest_variant
+install(TARGETS jtag
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-add_subdirectory(samples/jtag)
