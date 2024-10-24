@@ -19,7 +19,7 @@
 
 #include <variant>
 
-namespace fsm_variant {
+namespace vfsm {
 
 //
 // Overload pattern

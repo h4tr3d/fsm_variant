@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(FsmTest_variant main.cpp
-    fsm_variant.hpp)
+    vfsm/vfsm.hpp)
 
 include(GNUInstallDirs)
 install(TARGETS FsmTest_variant

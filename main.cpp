@@ -1,6 +1,6 @@
 #include <cstdio>
 
-#include "fsm_variant.hpp"
+#include "vfsm/vfsm.hpp"
 
 auto main() noexcept -> int
 {
@@ -26,7 +26,7 @@ auto main() noexcept -> int
         // Transition table
         constexpr auto operator()()
         {
-            return fsm_variant::overload {
+            return vfsm::overload {
                 [this](Init, EvProcess) -> Run  { std::puts("init"); ctx = {}; return {}; },
                 [this](Run,  EvProcess) -> std::variant<Run, Done, Fail> {
                 std::puts("run");
@@ -45,19 +45,19 @@ auto main() noexcept -> int
                 [](Run)                     { std::puts("Run State Poll"); },
 
                 // OnEnter/OnExit cases
-                [](Init,       fsm_variant::OnEnter) { std::puts("++ Init onEnter"); },
-                [](Init, auto, fsm_variant::OnExit)  { std::puts("-- Init onExit"); },
-                [](Run,  auto, fsm_variant::OnEnter) { std::puts("++ Run onEnter"); },
-                [](Run,  auto, fsm_variant::OnExit)  { std::puts("-- Run onExit"); },
-                [](auto, auto, fsm_variant::OnEnter) { std::puts("++ Generic onEnter"); },
-                [](auto, auto, fsm_variant::OnExit)  { std::puts("-- Generic onExit"); }
+                [](Init,       vfsm::OnEnter) { std::puts("++ Init onEnter"); },
+                [](Init, auto, vfsm::OnExit)  { std::puts("-- Init onExit"); },
+                [](Run,  auto, vfsm::OnEnter) { std::puts("++ Run onEnter"); },
+                [](Run,  auto, vfsm::OnExit)  { std::puts("-- Run onExit"); },
+                [](auto, auto, vfsm::OnEnter) { std::puts("++ Generic onEnter"); },
+                [](auto, auto, vfsm::OnExit)  { std::puts("-- Generic onExit"); }
             };
         }
 
         Context ctx{};
     };
 
-    using MyFsm = fsm_variant::Fsm<LocalSm, LocalSm::Init, LocalSm::Run, LocalSm::Done, LocalSm::Fail, LocalSm::Wait>;
+    using MyFsm = vfsm::Fsm<LocalSm, LocalSm::Init, LocalSm::Run, LocalSm::Done, LocalSm::Fail, LocalSm::Wait>;
 
     MyFsm sm{LocalSm{}, LocalSm::Init{}};
 
@@ -66,7 +66,7 @@ auto main() noexcept -> int
     sm.processEvent(LocalSm::EvProcess{});
 
     // Poll only in the Run state
-    sm.visit(fsm_variant::overload{
+    sm.visit(vfsm::overload{
         [&](LocalSm::Run) { sm.poll(); },
         [](auto) {} // fallback
     });
