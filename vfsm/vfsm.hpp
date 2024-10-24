@@ -1,5 +1,9 @@
-#pragma once
-
+//
+// Distributed under MIT license.
+//
+// Copyright 2024 Alexander Drozdov <adrozdoff@gmail.com>
+// Author: Alexander Drozdov <adrozdoff@gmail.com>
+// Site:   https://github.com/h4tr3d/fsm_variant/
 //
 // References:
 //
@@ -10,12 +14,8 @@
 //   - <https://gist.github.com/rpoisel/bada82555a1b08c98f41f6e72616e50a>
 //
 // - <https://devblogs.microsoft.com/oldnewthing/20190620-00/?p=102604>
-//
-// Copyright 2024 Alexander Drozdov <adrozdoff@gmail.com>
-// Author: Alexander Drozdov <adrozdoff@gmail.com>
-//
-// Distributed under MIT license.
-//
+
+#pragma once
 
 #include <variant>
 
