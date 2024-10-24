@@ -87,8 +87,8 @@ struct OnExit  {};
  * ```
  *
  */
-template <class Table, class... States>
-    requires (requires (Table t) { t(); })
+template <class TableContext, class... States>
+    requires (requires (TableContext t) { t(); })
 class Fsm
 {
 public:
@@ -96,37 +96,39 @@ public:
 
     using StateVariant = std::variant<States...>;
 
-    constexpr Fsm(Table &&table, StateVariant &&initialState)
-        : _table {std::move(table)},
+    constexpr Fsm(TableContext &&table, StateVariant &&initialState)
+        : _context {std::move(table)},
           _state {std::move(initialState)}
     {
         // Handle initalState onEnter here
         std::visit([this](auto&& s) {
             using CurrentStateType = std::remove_reference_t<decltype(s)>;
-            if constexpr (requires { _table()(s, s, OnEnter{}); }) {
-                _table()(s, s, OnEnter{});
-            } else if constexpr (requires { _table()(s, OnEnter{}); }) {
-                _table()(s, OnEnter{});
+            if constexpr (requires { _context()(s, s, OnEnter{}); }) {
+                _context()(s, s, OnEnter{});
+            } else if constexpr (requires { _context()(s, OnEnter{}); }) {
+                _context()(s, OnEnter{});
             }
         }, _state);
     }
 
     constexpr bool poll()
     {
-        return std::visit([this](auto &&state) -> bool {
-            if constexpr (requires { _state = _table()(state); }) {
-                auto newState = _table()(state);
+        return std::visit([this](auto&& state) -> bool {
+            using StateType = std::remove_reference_t<decltype(state)>;
+
+            if constexpr (requires { _state = _context()(state); }) {
+                auto newState = _context()(state);
                 handleOnExitEnter(newState);
                 _state = std::move(newState);
                 return true;
-            } else if constexpr (requires { std::visit([](auto&& x){}, _table()(state)); }) {
+            } else if constexpr (requires { std::visit([](auto&& x){}, _context()(state)); }) {
                 std::visit([this](auto&& newState) {
                     handleOnExitEnter(newState);
                     _state = std::move(newState);
-                }, _table()(state));
+                }, _context()(state));
                 return true;
-            } else if constexpr (requires { _table()(state); }) {
-                _table()(state);
+            } else if constexpr (requires { _context()(state); }) {
+                _context()(state);
                 return true;
             } else {
                 return false;
@@ -138,22 +140,22 @@ public:
     constexpr bool processEvent(Event &&event)
     {
         return std::visit([this,&event](auto&& state) -> bool {
-            if constexpr (requires { _state = _table()(state, event); }) {
-                auto newState = _table()(state, event);
+            if constexpr (requires { _state = _context()(state, event); }) {
+                auto newState = _context()(state, std::forward<Event>(event));
                 handleOnExitEnter(newState);
                 _state = std::move(newState);
                 return true;
-            } else if constexpr (requires { std::visit([](auto&& x){},_table()(state, event)); }) {
+            } else if constexpr (requires { std::visit([](auto&& x){},_context()(state, event)); }) {
 
                 // iterate over resulting variants
                 std::visit([this](auto&& newState) {
                     handleOnExitEnter(newState);
                     _state = std::move(newState);
-                }, _table()(state, event));
+                }, _context()(state, std::forward<Event>(event)));
 
                 return true;
-            } else if constexpr (requires { _table()(state, event); }) {
-                _table()(state, event);
+            } else if constexpr (requires { _context()(state, event); }) {
+                _context()(state, std::forward<Event>(event));
                 return true;
             } else {
                 return false;
@@ -166,28 +168,42 @@ public:
         return std::visit(fn, _state);
     }
 
+    constexpr auto visit(auto&& fn)
+    {
+        return std::visit(fn, _state);
+    }
+
+    auto const& context() const
+    {
+        return _context;
+    }
+
+    auto& context()
+    {
+        return _context;
+    }
+
 private:
-    template<typename State>
-    void handleOnExitEnter(State& newState)
+    template<typename NewStateType>
+    void handleOnExitEnter(NewStateType& newState)
     {
         // onExit/onEnter
-        using NewStateType = State;
         if (std::holds_alternative<NewStateType>(_state) == false) {
             std::visit([this,&newState](auto&& currentState) {
                 using CurrentStateType = std::remove_reference_t<decltype(currentState)>;
 
                 // process current state onExit
-                if constexpr (requires { _table()(currentState, newState, OnExit{}); }) {
-                    _table()(currentState, newState, OnExit{});
-                } else if constexpr (requires { _table()(currentState, OnExit{}); }) {
-                    _table()(currentState, OnExit{});
+                if constexpr (requires { _context()(currentState, newState, OnExit{}); }) {
+                    _context()(currentState, newState, OnExit{});
+                } else if constexpr (requires { _context()(currentState, OnExit{}); }) {
+                    _context()(currentState, OnExit{});
                 }
 
                 // process new state onEnter
-                if constexpr (requires { _table()(newState, currentState, OnEnter{}); }) {
-                    _table()(newState, currentState, OnEnter{});
-                } else if constexpr (requires { _table()(newState, OnEnter{}); }) {
-                    _table()(newState, OnEnter{});
+                if constexpr (requires { _context()(newState, currentState, OnEnter{}); }) {
+                    _context()(newState, currentState, OnEnter{});
+                } else if constexpr (requires { _context()(newState, OnEnter{}); }) {
+                    _context()(newState, OnEnter{});
                 }
 
             }, _state);
@@ -195,7 +211,7 @@ private:
     }
 
 private:
-    Table _table;
+    TableContext _context;
     StateVariant _state;
 };
 
