@@ -112,8 +112,8 @@ struct FsmContext {
 ```
 
 **Selector Tag** can be:
-- `vfsm::OnEnter`: action will be called on the Action Entry
-- `vsfm::OnExit`: action will be called on the Action Exit
+- `vfsm::OnEnter`: action will be called on the State Entry
+- `vsfm::OnExit`: action will be called on the State Exit
 
 **Source/Target State** field matches state from (for OnEnter)/to (for OnExit) transition was occurred.
 
