@@ -92,7 +92,7 @@ struct FsmContext {
 ```
 
 Note, well-known "overload pattern" are used ([one](https://www.cppstories.com/2019/02/2lines3featuresoverload.html/), [two](https://www.modernescpp.com/index.php/visiting-a-std-variant-with-the-overload-pattern/), 
-[three (look into Example section)](https://en.cppreference.com/w/cpp/utility/variant/visit)).
+[three (look into Example section)](https://en.cppreference.com/w/cpp/utility/variant/visit#Example)).
  
 `FsmContext` can contains some "state" information. Yep, it is not handled by the state types. Maybe it will be changed in the future.
 
