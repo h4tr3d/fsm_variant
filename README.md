@@ -124,7 +124,7 @@ Now, compose it together. Simples way, just declare alias for the State Machine 
 using LampSwitchFsm = vfsm::Fsm<FsmContext, Off, On>;
 ```
 
-First type - Context defined about  that provides `operator()()` and transition table. Next types just an enumeration
+First type - Context was defined above, just a type that provides `operator()()` - transition table. Next types just an enumeration
 of the states handled by the State Machine.
 
 Next, create instance and process it:
