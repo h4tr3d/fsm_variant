@@ -102,7 +102,6 @@ public:
     {
         // Handle initalState onEnter here
         std::visit([this](auto&& s) {
-            using CurrentStateType = std::remove_reference_t<decltype(s)>;
             if constexpr (requires { _context()(s, s, OnEnter{}); }) {
                 _context()(s, s, OnEnter{});
             } else if constexpr (requires { _context()(s, OnEnter{}); }) {
@@ -114,14 +113,12 @@ public:
     constexpr bool poll()
     {
         return std::visit([this](auto&& state) -> bool {
-            using StateType = std::remove_reference_t<decltype(state)>;
-
             if constexpr (requires { _state = _context()(state); }) {
                 auto newState = _context()(state);
                 handleOnExitEnter(newState);
                 _state = std::move(newState);
                 return true;
-            } else if constexpr (requires { std::visit([](auto&& x){}, _context()(state)); }) {
+            } else if constexpr (requires { std::visit([](auto&&){}, _context()(state)); }) {
                 std::visit([this](auto&& newState) {
                     handleOnExitEnter(newState);
                     _state = std::move(newState);
@@ -145,8 +142,7 @@ public:
                 handleOnExitEnter(newState);
                 _state = std::move(newState);
                 return true;
-            } else if constexpr (requires { std::visit([](auto&& x){},_context()(state, event)); }) {
-
+            } else if constexpr (requires { std::visit([](auto&&){},_context()(state, event)); }) {
                 // iterate over resulting variants
                 std::visit([this](auto&& newState) {
                     handleOnExitEnter(newState);
@@ -190,8 +186,6 @@ private:
         // onExit/onEnter
         if (std::holds_alternative<NewStateType>(_state) == false) {
             std::visit([this,&newState](auto&& currentState) {
-                using CurrentStateType = std::remove_reference_t<decltype(currentState)>;
-
                 // process current state onExit
                 if constexpr (requires { _context()(currentState, newState, OnExit{}); }) {
                     _context()(currentState, newState, OnExit{});
